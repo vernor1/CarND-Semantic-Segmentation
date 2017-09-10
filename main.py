@@ -12,7 +12,7 @@ import project_tests as tests
 EPOCHS = 100
 BATCH_SIZE = 80
 KEEP_PROB = 0.5
-LEARNING_RATE = 5e-4
+LEARNING_RATE = 1e-3
 
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
@@ -131,17 +131,19 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 tests.test_optimize(optimize)
 
 
-def get_mean_iou(logits, correct_label, num_classes):
+def get_metrics(logits, correct_label, num_classes):
     """
     return: Tuple of (mean_iou, iou_op)
     """
     labels = tf.argmax(tf.reshape(correct_label, (-1, num_classes)), 1)
     predictions = tf.argmax(logits, 1)
-    return tf.metrics.mean_iou(labels, predictions, num_classes)
+    mean_iou, mean_op = tf.metrics.mean_iou(labels, predictions, num_classes)
+    _, acc_op = tf.metrics.accuracy(labels, predictions)
+    return mean_iou, mean_op, acc_op
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-             correct_label, keep_prob, learning_rate, iou_op=None, mean_iou=None):
+             correct_label, keep_prob, learning_rate, iou_op=None, mean_iou=None, acc_op=None):
     """
     Train neural network and print out the loss during training.
     :param sess: TF Session
@@ -164,11 +166,11 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
         feed_dict = {input_image: images, correct_label: labels, keep_prob: KEEP_PROB, learning_rate: LEARNING_RATE}
         _, loss = sess.run([train_op, cross_entropy_loss], feed_dict=feed_dict)
         if iou_op != None:
-          _, miou = sess.run([iou_op, mean_iou], feed_dict=feed_dict)
+          _, miou, acc = sess.run([iou_op, mean_iou, acc_op], feed_dict=feed_dict)
       if iou_op == None:
         print("Epoch %d, loss %f" % (epoch + 1, loss))
       else:
-        print("Epoch %d, loss %f, mIOU %f" % (epoch + 1, loss, miou))
+        print("Epoch %d, loss %f, mIOU %f, accuracy %f" % (epoch + 1, loss, miou, acc))
     pass
 tests.test_train_nn(train_nn)
 
@@ -187,8 +189,6 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-#    tf.reset_default_graph()
-
     with tf.Session() as sess:
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
@@ -203,17 +203,24 @@ def run():
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
         correct_label = tf.placeholder(tf.float32, (None, None, None, num_classes))
         learning_rate = tf.placeholder(tf.float32)
-        logits, train_op, cross_entropy_loss = optimize(nn_last_layer, correct_label, learning_rate, num_classes)
+        logits, train_op, cross_entropy_loss = optimize(nn_last_layer,
+                                                        correct_label,
+                                                        learning_rate,
+                                                        num_classes)
 
-        mean_iou, iou_op = get_mean_iou(logits, correct_label, num_classes)
+        mean_iou, iou_op, acc_op = get_metrics(logits,
+                                               correct_label,
+                                               num_classes)
 
         sess.run(tf.global_variables_initializer())
 
         # Load model.
-        tf.train.Saver().restore(sess, "./checkpoints/model.ckpt")
+        #tf.train.Saver().restore(sess, "./checkpoints/model.ckpt")
 
         # TODO: Train NN using the train_nn function
-        train_nn(sess, EPOCHS, BATCH_SIZE, get_batches_fn, train_op, cross_entropy_loss, image_input, correct_label, keep_prob, learning_rate, iou_op, mean_iou)
+        train_nn(sess, EPOCHS, BATCH_SIZE, get_batches_fn, train_op,
+                 cross_entropy_loss, image_input, correct_label, keep_prob,
+                 learning_rate, iou_op, mean_iou, acc_op)
 
         # Save model.
         tf.train.Saver().save(sess, "./checkpoints/model.ckpt")
