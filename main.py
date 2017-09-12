@@ -1,8 +1,12 @@
+import numpy as np
 import os.path
+import scipy.misc
 import tensorflow as tf
 import helper
 import warnings
 from distutils.version import LooseVersion
+from functools import partial
+from moviepy.editor import VideoFileClip
 import project_tests as tests
 
 
@@ -10,8 +14,8 @@ import project_tests as tests
 # ------------------------------------------------------------------------------
 
 EPOCHS = 100
-BATCH_SIZE = 80
-KEEP_PROB = 0.5
+BATCH_SIZE = 50
+KEEP_PROB = 0.7
 LEARNING_RATE = 1e-3
 
 # Check TensorFlow Version
@@ -64,14 +68,15 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # Freeze layers of VGG16.
-    vgg_layer3_out = tf.stop_gradient(vgg_layer3_out)
-    vgg_layer4_out = tf.stop_gradient(vgg_layer4_out)
-    vgg_layer7_out = tf.stop_gradient(vgg_layer7_out)
+    #vgg_layer3_out = tf.stop_gradient(vgg_layer3_out)
+    #vgg_layer4_out = tf.stop_gradient(vgg_layer4_out)
+    #vgg_layer7_out = tf.stop_gradient(vgg_layer7_out)
     # VGG Layer 7, 1x1 convolution to predict scores for each of the classes.
     conv_1x1 = tf.layers.conv2d(vgg_layer7_out,
                                 num_classes,
                                 1,
                                 padding='same',
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # 2x upsampling, building FCN-32.
     output = tf.layers.conv2d_transpose(conv_1x1,
@@ -79,12 +84,14 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
                                         4,
                                         strides=(2,2),
                                         padding='same',
+                                        kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # VGG Layer 4, 1x1 convolution to produce additional class predictions.
     conv_1x1 = tf.layers.conv2d(vgg_layer4_out,
                                 num_classes,
                                 1,
                                 padding='same',
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # Fuse output of the FCN-32 predictions with the VGG Layer 4 predictions.
     output = tf.add(output, conv_1x1)
@@ -94,12 +101,14 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
                                         4,
                                         strides=(2,2),
                                         padding='same',
+                                        kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # VGG Layer 3, 1x1 convolution to produce additional class predictions.
     conv_1x1 = tf.layers.conv2d(vgg_layer3_out,
                                 num_classes,
                                 1,
                                 padding='same',
+                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # Fuse output of the FCN-16 predictions with the VGG Layer 3 predictions.
     output = tf.add(output, conv_1x1)
@@ -109,6 +118,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
                                         16,
                                         strides=(8,8),
                                         padding='same',
+                                        kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     return output
 tests.test_layers(layers)
@@ -174,6 +184,29 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     pass
 tests.test_train_nn(train_nn)
 
+def process_image(sess, image_input, logits, keep_prob, image_shape, in_img):
+    """ Processes an RGB image for detecting vehicles.
+        The information is added to the original image in overlay.
+
+    param: img: Image to process
+    returns: Processed RGB image
+    """
+    in_img = in_img[300:-65,1:-1,:]
+    in_img = scipy.misc.imresize(in_img, (image_shape[0] * 2, image_shape[1] * 2))
+    img = scipy.misc.imresize(in_img, image_shape)
+    im_softmax = sess.run(
+        [tf.nn.softmax(logits)],
+        {keep_prob: 1.0, image_input: [img]})
+    im_softmax = im_softmax[0][:, 1].reshape(img.shape[0], img.shape[1])
+    segmentation = (im_softmax > 0.5).reshape(img.shape[0], img.shape[1], 1)
+    mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
+    mask = scipy.misc.imresize(mask, (in_img.shape[0], in_img.shape[1]))
+    mask = scipy.misc.toimage(mask, mode="RGBA")
+    street_im = scipy.misc.toimage(in_img)
+    street_im.paste(mask, box=None, mask=mask)
+    out_img = np.array(street_im)
+    scipy.misc.imsave("test.png", out_img)
+    return out_img
 
 def run():
     num_classes = 2
@@ -215,7 +248,7 @@ def run():
         sess.run(tf.global_variables_initializer())
 
         # Load model.
-        #tf.train.Saver().restore(sess, "./checkpoints/model.ckpt")
+        tf.train.Saver().restore(sess, "./checkpoints/model.ckpt")
 
         # TODO: Train NN using the train_nn function
         train_nn(sess, EPOCHS, BATCH_SIZE, get_batches_fn, train_op,
@@ -229,6 +262,10 @@ def run():
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, image_input)
 
         # OPTIONAL: Apply the trained model to a video
+        in_clip = VideoFileClip("project_video.mp4")
+        parametrized_process_image = partial(process_image, sess, image_input, logits, keep_prob, image_shape)
+        out_clip = in_clip.fl_image(parametrized_process_image)
+        out_clip.write_videofile("out_video.mp4", audio=False)
 
 
 if __name__ == '__main__':
