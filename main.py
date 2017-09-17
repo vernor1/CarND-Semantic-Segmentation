@@ -216,8 +216,13 @@ def process_image(sess, image_input, logits, keep_prob, image_shape, in_img):
     :param in_img: Input image
     returns: Processed RGB image
     """
-    in_img = in_img[300:-65,1:-1,:]
+    # Original clip resolution 1080x1920, aspect ratio 9:16
+    # NN is trained on image shape 160x576, aspect ratio 1:3.6
+    # First crop the video frame to the desired aspect ration1:3.6, making resolution 530x1908
+    in_img = in_img[166:-384,6:-6,:]
+    # Downscale the frame to 320x1152 for final output.
     in_img = scipy.misc.imresize(in_img, (image_shape[0] * 2, image_shape[1] * 2))
+    # Downscale the frame to 160x576 for classifying pixels.
     img = scipy.misc.imresize(in_img, image_shape)
     im_softmax = sess.run(
         [tf.nn.softmax(logits)],
@@ -225,9 +230,11 @@ def process_image(sess, image_input, logits, keep_prob, image_shape, in_img):
     im_softmax = im_softmax[0][:, 1].reshape(img.shape[0], img.shape[1])
     segmentation = (im_softmax > 0.5).reshape(img.shape[0], img.shape[1], 1)
     mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
+    # Upscale the mask to 320x1152.
     mask = scipy.misc.imresize(mask, (in_img.shape[0], in_img.shape[1]))
     mask = scipy.misc.toimage(mask, mode="RGBA")
     street_im = scipy.misc.toimage(in_img)
+    # Mask overlay on the final image.
     street_im.paste(mask, box=None, mask=mask)
     out_img = np.array(street_im)
     return out_img
@@ -265,7 +272,7 @@ def run():
         # Save inference data using helper.save_inference_samples
         helper.save_inference_samples(RUNS_DIR, DATA_DIR, sess, IMAGE_SHAPE, logits, keep_prob, image_input)
         # Apply the trained model to a video
-        in_clip = VideoFileClip("project_video.mp4")
+        in_clip = VideoFileClip("test_video.mov")
         parametrized_process_image = partial(process_image, sess, image_input, logits, keep_prob, IMAGE_SHAPE)
         out_clip = in_clip.fl_image(parametrized_process_image)
         out_clip.write_videofile("out_video.mp4", audio=False)
