@@ -94,6 +94,8 @@ Surprisingly, the model trained on a small (<300 samples) data set of European r
 
 [![](img/out_video.gif)](https://youtu.be/HFA80laYi8k "Semantic Segmentation")
 
+Same training on a relevant data set should be sufficient for a reliable classification of the road, traffic signs and signals, other vehicles, pedestrian, etc.
+
 ---
 ### Setup
 ##### Frameworks and Packages
