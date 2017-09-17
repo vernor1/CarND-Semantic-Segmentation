@@ -85,9 +85,16 @@ The final model was trained on NVIDIA Tesla K80 for 80 epochs with batch size 50
 
 #### 3. Does the project correctly label the road?
 
-### Introduction
-In this project, you'll label the pixels of a road in images using a Fully Convolutional Network (FCN).
+The model is able to correctly classify most of the road pixels in the Kitti road test set:
+<p align="center"><img src="img/um_000005.jpeg" alt="Sample 1"/></p>
+<p align="center"><img src="img/umm_000035.jpeg" alt="Sample 2"/></p>
+<p align="center"><img src="img/um_000019.jpeg" alt="Sample 3"/></p>
 
+Surprisingly, the model trained on a small (<300 samples) data set of European road images performed quite well when applied to the recording of an American road (click to see the full footage):
+
+[![](img/out_video.gif)](https://youtu.be/HFA80laYi8k "Semantic Segmentation")
+
+---
 ### Setup
 ##### Frameworks and Packages
 Make sure you have the following is installed:
@@ -95,28 +102,14 @@ Make sure you have the following is installed:
  - [TensorFlow](https://www.tensorflow.org/)
  - [NumPy](http://www.numpy.org/)
  - [SciPy](https://www.scipy.org/)
+ 
 ##### Dataset
 Download the [Kitti Road dataset](http://www.cvlibs.net/datasets/kitti/eval_road.php) from [here](http://www.cvlibs.net/download.php?file=data_road.zip).  Extract the dataset in the `data` folder.  This will create the folder `data_road` with all the training a test images.
 
+---
 ### Start
-##### Implement
-Implement the code in the `main.py` module indicated by the "TODO" comments.
-The comments indicated with "OPTIONAL" tag are not required to complete.
 ##### Run
 Run the following command to run the project:
 ```
 python main.py
 ```
-**Note** If running this in Jupyter Notebook system messages, such as those regarding test status, may appear in the terminal rather than the notebook.
-
-### Submission
-1. Ensure you've passed all the unit tests.
-2. Ensure you pass all points on [the rubric](https://review.udacity.com/#!/rubrics/989/view).
-3. Submit the following in a zip file.
- - `helper.py`
- - `main.py`
- - `project_tests.py`
- - Newest inference images from `runs` folder
- 
- ## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
