@@ -1,4 +1,28 @@
-# Semantic Segmentation
+# Semantic Segmentation Project
+The goals / steps of this project are the following:
+
+* Reuse a pre-trained VGG neural network for extracting low-level image features.
+* Build a Fully Convolutional Network (FCN) to upsample the extracted features for classifying every pixel of an image.
+* Train the FCN with road images.
+* Callsify road pixels of sample images and videos (optional).
+
+## [Rubric](https://review.udacity.com/#!/rubrics/989/view) Points
+#### Here I consider the rubric points individually and describe how I addressed each point in my implementation.  
+
+---
+### Build the Neural Network
+
+#### 1. Does the project load the pretrained vgg model?
+
+Yes, see `load_vgg` function in `main.py`.
+
+#### 2. Does the project learn the correct features from the images?
+
+Yes, see `layers` function in `main.py`. The network architecture is inspired by paper [Fully Convolutional Networks for Semantic Segmentation](https://people.eecs.berkeley.edu/~jonlong/long_shelhamer_fcn.pdf) by Jonathan Long et al.
+
+
+
+
 ### Introduction
 In this project, you'll label the pixels of a road in images using a Fully Convolutional Network (FCN).
 
