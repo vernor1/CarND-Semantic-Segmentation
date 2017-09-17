@@ -4,7 +4,7 @@ The goals / steps of this project are the following:
 * Reuse a pre-trained VGG neural network for extracting low-level image features.
 * Build a Fully Convolutional Network (FCN) to upsample the extracted features for classifying every pixel of an image.
 * Train the FCN with road images.
-* Callsify road pixels of sample images and videos (optional).
+* Classify road pixels of sample images and videos (optional).
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/989/view) Points
 #### Here I consider the rubric points individually and describe how I addressed each point in my implementation.  
@@ -23,9 +23,9 @@ Yes, see function `layers` in `main.py`. The network architecture is inspired by
 
 VGG-16 network is decapitated by discarding the final classifier layer, and then all fully connected layers are converted to to convolutions. The output of VGG-16 is appended a 1×1 convolution to predict scores for each of the two classes (road and background) at each of the coarse output locations, followed by a deconvolution layer to bilinearly upsample the coarse outputs to pixel-dense outputs.
 
-While the fully convolutionalized classifier can be fine-tuned to segmentation, its output is dissatisfyingly coarse. The issue is addressed by adding skips that combine the final prediction layer with lower layers with finer strides. Combining fine layers and coarse layers lets the model make local predictions that respect global structure. The output stride is first devided in half by predicting from a 16 pixel stride layer. Then a 1×1 convolution layer is added on top of pool4 to produce additional class predictions. This output is fused with the predictions computed on top of conv7 (convolutionalized fc7) at stride 32 by adding a 2× upsampling layer and summing both predictions. This net is called FCN-16s. FCN-16s is learned end-to-end, initialized with the parameters of the last, coarser net, which is called FCN-32s. We continue in this fashion by fusing predictions from pool3 with a 2× upsampling of predictions fused from pool4 and conv7, building the net FCN-8s.
+While the fully convolutionalized classifier can be fine-tuned to segmentation, its output is dissatisfyingly coarse. The issue is addressed by adding skips that combine the final prediction layer with lower layers with finer strides. Combining fine layers and coarse layers lets the model make local predictions that respect global structure. The output stride is first divided in half by predicting from a 16 pixel stride layer. Then a 1×1 convolution layer is added on top of pool4 to produce additional class predictions. This output is fused with the predictions computed on top of conv7 (convolutionalized fc7) at stride 32 by adding a 2× upsampling layer and summing both predictions. This net is called FCN-16s. FCN-16s is learned end-to-end, initialized with the parameters of the last, coarser net, which is called FCN-32s. We continue in this fashion by fusing predictions from pool3 with a 2× upsampling of predictions fused from pool4 and conv7, building the net FCN-8s.
 
-However the result of an FCN-8s inference directly upsampled to the original image size appears to be quite noisy, with distinct mislassified pixels on the road and background. This is addressed by applying a gradual 4x upsampling, 3x3 convolution (with ELU activation), 2x downsampling, repeated 3x times, as proposed by Jose Rojas in the CarND channel #p-advanced-deep-learn. This operation finds correlation of adjacent pixels and prevents misclassification of distinct pixels.
+However the result of an FCN-8s inference directly upsampled to the original image size appears to be quite noisy, with distinct misclassified pixels on the road and background. This is addressed by applying a gradual 4x upsampling, 3x3 convolution (with ELU activation), 2x downsampling, repeated 3x times, as proposed by Jose Rojas in the CarND channel #p-advanced-deep-learn. This operation finds correlation of adjacent pixels and prevents misclassification of distinct pixels.
 
 #### 3. Does the project optimize the neural network?
 
